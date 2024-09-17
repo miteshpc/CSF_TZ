@@ -1,50 +1,91 @@
-## Code Documentation for `csf_tz` App
+## CSF Timezone Module Documentation
 
-**Table of Contents**
+**Table of Contents:**
 
-1.  [Overview](#overview)
-2.  [Module Structure](#module-structure)
-    *   [App Installation](#app-installation)
-    *   [Monkey Patches](#monkey-patches)
-    *   [Hooks](#hooks)
-    *   [Database Connection](#database-connection)
-    *   [Console Output](#console-output)
+* [Overview](#overview)
+* [Monkey Patches](#monkey-patches)
+* [Hooks](#hooks)
+* [Connection Patch](#connection-patch)
+* [Console Logging](#console-logging)
 
-### Overview <a name="overview"></a>
+### Overview
 
-This code snippet defines the `csf_tz` application, a Frappe/ERPNext app that utilizes monkey patching to modify core Frappe functionality. The app is designed to enhance or alter existing functionality by overriding specific methods and injecting custom logic. 
+The `csf_tz` module provides a mechanism for modifying Frappe/ERPNext functionality by leveraging "monkey patching" - dynamically altering existing code at runtime. This module utilizes a combination of hooks and connection patching to ensure consistent application of these modifications. 
 
-### Module Structure <a name="module-structure"></a>
+### Monkey Patches
 
-#### App Installation  <a name="app-installation"></a>
+The `monkey_patches` directory within the `csf_tz` application is responsible for housing custom code that modifies existing Frappe/ERPNext functionality. This directory will typically contain Python files representing specific modifications.
 
-*   **`__version__`**: Defines the version of the `csf_tz` app.
-*   **`app_name`**: Stores the name of the app as `csf_tz`.
-*   **`patches_loaded`**: A flag that indicates whether monkey patches have been applied. This flag is set to `False` by default.
+**Loading Monkey Patches:**
 
-#### Monkey Patches <a name="monkey-patches"></a>
+The `load_monkey_patches` function is responsible for loading all monkey patch modules within the `monkey_patches` directory. It iterates through the directory, importing each Python file except for `__init__.py`. The function utilizes `importlib.import_module` to dynamically import the modules.
 
-*   **`load_monkey_patches()`**: This function loads all modules present in the `monkey_patches` directory within the app. It ensures that patches are loaded only once per app installation. 
-    *   The function iterates through all files in the `monkey_patches` directory and imports them dynamically. 
-    *   If a file does not end with `.py` or is named `__init__.py`, it is skipped.
+**Patching Mechanism:**
 
-#### Hooks <a name="hooks"></a>
+The `csf_tz` module implements two primary mechanisms for applying monkey patches:
 
-*   **`old_get_hooks`**: Stores a reference to the original `frappe.get_hooks` function, which is used to retrieve hooks defined in Frappe apps.
-*   **`get_hooks()`**: This function overrides the `frappe.get_hooks` function. It first ensures that the monkey patches have been loaded by calling `load_monkey_patches()` and then calls the original `frappe.get_hooks` function to return the hook data.
+1. **Hooks:** The `get_hooks` function intercepts calls to Frappe's built-in `get_hooks` function, ensuring that the monkey patches are loaded before any hooks defined by the core Frappe/ERPNext application or other custom applications are processed. 
+2. **Connection Patch:** The `connect` function patches Frappe's `connect` function, which establishes a connection to the database. This ensures that the monkey patches are loaded once a connection is established, guaranteeing that they are applied before any application code is executed.
 
-#### Database Connection <a name="database-connection"></a>
+**Example:**
 
-*   **`old_connect`**: Stores a reference to the original `frappe.connect` function, which is used to establish a connection to the Frappe database.
-*   **`connect()`**: This function overrides the `frappe.connect` function. It first calls the original `frappe.connect` function to establish the connection and then calls `load_monkey_patches()` to apply the monkey patches once the connection is established.
+```python
+# monkey_patches/my_patch.py
 
-#### Console Output <a name="console-output"></a>
+def my_patched_function(*args, **kwargs):
+    # Custom implementation of the patched function
+    print("Custom logic applied!")
+    return original_function(*args, **kwargs)
 
-*   **`console()`**: This function sends data to the Frappe console using the `frappe.publish_realtime` method. 
-    *   The `out_to_console` event is used to publish the data.
-    *   The current user's session is used as the target user.
-    *   This function provides a mechanism for developers to display output directly in the Frappe console.
+original_function = frappe.get_attr("original_module.original_function")
+frappe.get_attr("original_module.original_function") = my_patched_function
+```
 
-**Example Usage**
+In this example, the `my_patched_function` overrides the `original_function` by replacing its reference within the `original_module`.
 
-The `csf_tz` app modifies Frappe behavior by overriding functions like `frappe.get_hooks` and `frappe.connect`. This approach allows developers to extend or customize Frappe functionality without directly altering the core Frappe code. 
+### Hooks
+
+The `csf_tz` module utilizes a simple approach to integrating custom logic with Frappe/ERPNext's hook system. The `get_hooks` function intercepts calls to Frappe's built-in `get_hooks` function, ensuring that the monkey patches are loaded before any hooks defined by the core Frappe/ERPNext application or other custom applications are processed.
+
+**Example:**
+
+```python
+# monkey_patches/my_hook.py
+
+def my_custom_hook():
+    print("Custom hook logic executed!")
+
+frappe.get_hooks = get_hooks
+
+# Frappe's hook system will execute this custom hook
+frappe.get_hooks().my_custom_hook = my_custom_hook
+```
+
+### Connection Patch
+
+The `connect` function patches Frappe's `connect` function. This ensures that the monkey patches are loaded once a connection is established, guaranteeing that they are applied before any application code is executed.
+
+**Example:**
+
+```python
+# Example of using the connection patch to load monkey patches
+frappe.connect(site="my_site", user="my_user", password="my_password")
+
+# Monkey patches are loaded after connection establishment 
+```
+
+### Console Logging
+
+The `console` function provides a simple mechanism for logging messages to the Frappe console. It utilizes Frappe's real-time messaging functionality to publish the data to the console.
+
+**Example:**
+
+```python
+# Sending a message to the console
+frappe.console("This message will be logged to the console.")
+
+# Sending a list of messages
+frappe.console(["This is message 1", "This is message 2"])
+```
+
+This function allows for debugging and logging within the context of Frappe/ERPNext's environment. 
